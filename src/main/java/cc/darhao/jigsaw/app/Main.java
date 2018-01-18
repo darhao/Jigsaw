@@ -22,7 +22,7 @@ public class Main extends Application{
 
 	private MainController mainController;
 	
-	private static final String VESION = "V1.2";
+	private static final String VESION = "V0.1";
 	
 	private static final String NAME = "Jigsaw";
 

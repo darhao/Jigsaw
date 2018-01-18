@@ -57,9 +57,9 @@
 	<dependencies>
 
 		<dependency>
-			<groupId>com.jimi</groupId>
+			<groupId>cc.darhao</groupId>
 			<artifactId>jiminal</artifactId>
-			<version>1.0</version>
+			<version>1.0-SNAPHOT</version>
 		</dependency>
 		<!-- https://mvnrepository.com/artifact/junit/junit -->
 		<dependency>
@@ -90,7 +90,7 @@
 		<dependency>
 			<groupId>cc.darhao</groupId>
 			<artifactId>DaUtils</artifactId>
-			<version>1.0</version>
+			<version>1.0-SNAPHOT</version>
 		</dependency>
 	</dependencies>
 </project>

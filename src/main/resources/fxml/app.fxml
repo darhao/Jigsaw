@@ -6,31 +6,30 @@
 <?import javafx.scene.layout.*?>
 <?import javafx.scene.layout.AnchorPane?>
 
-
-<AnchorPane prefHeight="464.0" prefWidth="852.0" xmlns:fx="http://javafx.com/fxml/1" xmlns="http://javafx.com/javafx/8" fx:controller="cc.darhao.jigsaw.controller.MainController">
+<AnchorPane prefHeight="464.0" prefWidth="852.0" xmlns="http://javafx.com/javafx/8" xmlns:fx="http://javafx.com/fxml/1" fx:controller="cc.darhao.jigsaw.controller.MainController">
    <children>
-      <TextField fx:id="pathTf" layoutX="44.0" layoutY="31.0" prefHeight="23.0" prefWidth="225.0" promptText="选择通讯包class文件所在的目录" AnchorPane.leftAnchor="44.0" AnchorPane.topAnchor="31.0" />
+      <TextField fx:id="pathTf" layoutX="44.0" layoutY="31.0" prefHeight="23.0" prefWidth="225.0" promptText="通讯包class所在最顶级包所在的目录" AnchorPane.leftAnchor="44.0" AnchorPane.topAnchor="31.0" />
       <Button fx:id="pathBt" layoutX="279.0" layoutY="31.0" mnemonicParsing="false" onAction="#onClickPathBt" text="选择包目录" AnchorPane.leftAnchor="279.0" AnchorPane.topAnchor="31.0" />
       <TableView fx:id="packageTb" layoutX="44.0" layoutY="62.0" prefHeight="208.0" prefWidth="311.0" AnchorPane.bottomAnchor="194.0" AnchorPane.leftAnchor="44.0" AnchorPane.topAnchor="62.0">
         <columns>
-          <TableColumn fx:id="packageNameCol" prefWidth="222.0" text="包类名称" />
-          <TableColumn fx:id="packageProtocolCol" prefWidth="49.0" text="协议号" />
-            <TableColumn fx:id="packageLengthCol" minWidth="6.0" prefWidth="39.0" text="长度" />
+          <TableColumn fx:id="packageNameCol" editable="false" prefWidth="222.0" sortable="false" text="包类名称" />
+          <TableColumn fx:id="packageProtocolCol" editable="false" prefWidth="49.0" sortable="false" text="协议号" />
+            <TableColumn fx:id="packageLengthCol" editable="false" minWidth="6.0" prefWidth="39.0" sortable="false" text="长度" />
         </columns>
       </TableView>
       <TableView fx:id="fieldTb" layoutX="399.0" layoutY="62.0" prefHeight="208.0" prefWidth="410.0" AnchorPane.bottomAnchor="194.0" AnchorPane.leftAnchor="399.0" AnchorPane.rightAnchor="43.0" AnchorPane.topAnchor="62.0">
         <columns>
-          <TableColumn fx:id="fieldNameCol" prefWidth="126.0" text="属性名称" />
-            <TableColumn fx:id="fieldValueCol" prefWidth="134.0" text="值" />
-          <TableColumn fx:id="fieldTypeCol" prefWidth="73.0" text="类型" />
-            <TableColumn fx:id="fieldPositionCol" prefWidth="38.0" text="位置" />
-            <TableColumn fx:id="fieldLengthCol" prefWidth="38.0" text="长度" />
+          <TableColumn fx:id="fieldNameCol" editable="false" prefWidth="126.0" sortable="false" text="属性名称" />
+            <TableColumn fx:id="fieldValueCol" prefWidth="134.0" sortable="false" text="值" />
+          <TableColumn fx:id="fieldTypeCol" editable="false" prefWidth="73.0" sortable="false" text="类型" />
+            <TableColumn fx:id="fieldPositionCol" editable="false" prefWidth="38.0" sortable="false" text="位置" />
+            <TableColumn fx:id="fieldLengthCol" editable="false" prefWidth="38.0" sortable="false" text="长度" />
         </columns>
       </TableView>
       <TextArea fx:id="bytesTa" layoutX="43.0" layoutY="322.0" prefHeight="72.0" prefWidth="767.0" AnchorPane.bottomAnchor="70.0" AnchorPane.leftAnchor="43.0" AnchorPane.rightAnchor="42.0" />
       <Label layoutX="621.0" layoutY="35.0" text="信息序列号" AnchorPane.rightAnchor="171.0" AnchorPane.topAnchor="35.0" />
       <TextField fx:id="serialNoTf" layoutX="689.0" layoutY="31.0" prefHeight="23.0" prefWidth="60.0" promptText="0~FFFF" AnchorPane.rightAnchor="103.0" AnchorPane.topAnchor="31.0" />
-      <Button fx:id="randomBt" layoutX="757.0" layoutY="31.0" mnemonicParsing="false" text="随机数" AnchorPane.rightAnchor="43.0" AnchorPane.topAnchor="31.0" />
+      <Button fx:id="randomBt" layoutX="757.0" layoutY="31.0" mnemonicParsing="false" onAction="#onClickRandomBt" text="随机数" AnchorPane.rightAnchor="43.0" AnchorPane.topAnchor="31.0" />
       <Label fx:id="nameLb" layoutX="399.0" layoutY="35.0" text="包类名称：" AnchorPane.leftAnchor="399.0" AnchorPane.rightAnchor="393.0" AnchorPane.topAnchor="35.0">
          <font>
             <Font name="System Bold" size="12.0" />
@@ -38,7 +37,7 @@
       </Label>
       <Separator layoutX="374.0" layoutY="31.0" orientation="VERTICAL" prefHeight="240.0" prefWidth="7.0" AnchorPane.bottomAnchor="193.0" AnchorPane.leftAnchor="374.0" AnchorPane.topAnchor="31.0" />
       <Label layoutX="43.0" layoutY="301.0" text="数据显示：" AnchorPane.bottomAnchor="148.0" AnchorPane.leftAnchor="43.0" />
-      <RadioButton fx:id="hexRb" layoutX="109.0" layoutY="301.0" mnemonicParsing="false" prefHeight="16.0" prefWidth="69.0" text="十六进制" AnchorPane.bottomAnchor="147.0" AnchorPane.leftAnchor="109.0">
+      <RadioButton fx:id="hexRb" layoutX="109.0" layoutY="301.0" mnemonicParsing="false" prefHeight="16.0" prefWidth="69.0" selected="true" text="十六进制" AnchorPane.bottomAnchor="147.0" AnchorPane.leftAnchor="109.0">
          <toggleGroup>
             <ToggleGroup fx:id="format" />
          </toggleGroup>
