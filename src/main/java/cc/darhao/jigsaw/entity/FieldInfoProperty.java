@@ -45,5 +45,4 @@ public class FieldInfoProperty {
 		return length.get();
 	}
 	
-	
 }

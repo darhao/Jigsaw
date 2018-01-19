@@ -7,6 +7,7 @@ import java.io.IOException;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.net.URL;
+import java.text.ParseException;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
@@ -17,8 +18,10 @@ import java.util.ResourceBundle;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import cc.darhao.dautils.api.BytesParser;
 import cc.darhao.dautils.api.ClassScanner;
 import cc.darhao.dautils.api.DateUtil;
+import cc.darhao.dautils.api.StringUtil;
 import cc.darhao.jigsaw.entity.FieldInfo;
 import cc.darhao.jigsaw.entity.FieldInfoProperty;
 import cc.darhao.jigsaw.entity.PackageInfo;
@@ -42,6 +45,8 @@ import javafx.scene.control.TableView;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
 import javafx.scene.control.cell.PropertyValueFactory;
+import javafx.scene.control.cell.TextFieldTableCell;
+import javafx.scene.layout.AnchorPane;
 import javafx.scene.layout.Background;
 import javafx.scene.layout.BackgroundFill;
 import javafx.scene.paint.Color;
@@ -103,6 +108,16 @@ public class MainController implements Initializable {
 	private TextArea bytesTa;
 	@FXML
 	private Label stateLb;
+	@FXML
+	private AnchorPane parentAp;
+	@FXML
+	private Button jigsawBt;
+	@FXML
+	private Button unJigsawBt;
+	@FXML
+	private Button updateBt;
+	@FXML
+	private TextField updateTf;
 	
 	/**
 	 * 扫描出来的通讯包类列表
@@ -121,6 +136,11 @@ public class MainController implements Initializable {
 	 */
 	private ObservableList<FieldInfoProperty> fieldInfoPropertiesList;
 	
+	/**
+	 * 当前显示进制
+	 */
+	private int currentRadix = 16;
+	
 	
 	private Stage primaryStage;
 
@@ -128,73 +148,31 @@ public class MainController implements Initializable {
 	public void initialize(URL location, ResourceBundle resources) {
 		initConfigFile();
 		initTable();
+		initPackageSelectedListener();
 		initViewValue();
 		initSerialNoTfListener();
-		initBytesTaListener();
 		initFormatRbsListener();
-		initFieldValueColListener();
+		initFieldSelectedListener();
 	}
 
-
-	public void initFieldValueColListener() {
-	}
-
-
-	public void initFormatRbsListener() {
-		ChangeListener<Boolean> listener = new ChangeListener<Boolean>() {
+	
+	public void initFieldSelectedListener() {
+		fieldTb.getSelectionModel().selectedItemProperty().addListener(new ChangeListener<FieldInfoProperty>() {
 
 			@Override
-			public void changed(ObservableValue<? extends Boolean> observable, Boolean oldValue, Boolean newValue) {
-				serializePackageAndRefreshBytesTa();
-			}
-		};
-		hexRb.selectedProperty().addListener(listener);
-		decRb.selectedProperty().addListener(listener);
-		binRb.selectedProperty().addListener(listener);
-	}
-
-
-	public void initBytesTaListener() {
-		bytesTa.setWrapText(true);
-		bytesTa.textProperty().addListener(new ChangeListener<String>() {
-
-			@Override
-			public void changed(ObservableValue<? extends String> observable, String oldValue, String newValue) {
-				try {
-					//文本解析成字节集
-					List<Byte> bytes = new ArrayList<Byte>();
-					for (String byteString : bytesTa.getText().split(" ")) {
-						int i = 0;
-						if(hexRb.isSelected()) {
-							i = Integer.valueOf(byteString, 16);
-						}else if(decRb.isSelected()){
-							i = Integer.valueOf(byteString);
-						}else if(binRb.isSelected()) {
-							i = Integer.parseInt(byteString, 2);
-						}
-						bytes.add((byte) i);
-					}
-					//获取被选择的包类名字
-					String name = getSelectedPackage().getClass().getSimpleName();
-					//解析
-					BasePackage p = PackageParser.parse(bytes, packageClasses, name.contains("Reply"));
-					//更新对象并选择被修改的包类项
-					for (int i = 0; i < packageClasses.size(); i++) {
-						if(p.getClass().getSimpleName().equals(packageClasses.get(i).getSimpleName())) {
-							packageObjects.set(i, p);
-							if(packageTb.getSelectionModel().getSelectedIndex() != i) {
-								packageTb.getSelectionModel().select(i);
-							}
-						}
-					}
-				} catch (NumberFormatException e) {
-					error("字节集格式出错(" + e.getMessage()+")");
-					e.printStackTrace();
-				} catch (PackageParseException e) {
-					error("反序列化包对象时出错：" + e.getClass().getSimpleName() + " : " +e.getMessage());
-					e.printStackTrace();
+			public void changed(ObservableValue<? extends FieldInfoProperty> observable, FieldInfoProperty oldValue,
+					FieldInfoProperty newValue) {
+				if(newValue != null) {
+					updateTf.setText(newValue.getValue());
+					updateTf.setDisable(false);
+					updateBt.setDisable(false);
+				}else {
+					updateTf.setText("");
+					updateTf.setDisable(true);
+					updateBt.setDisable(true);
 				}
 			}
+			
 		});
 	}
 
@@ -205,9 +183,13 @@ public class MainController implements Initializable {
 			@Override
 			public void changed(ObservableValue<? extends String> observable, String oldValue, String newValue) {
 				//更新对应的包对象信息序列号
-				getSelectedPackage().serialNo = Integer.valueOf(newValue, 16).shortValue();
-				//序列化并更新字节集文本域
-				serializePackageAndRefreshBytesTa();
+				try {
+					getSelectedPackage().serialNo = Integer.valueOf(newValue, 16).shortValue();
+					info("更新信息序列号成功");
+				} catch (NumberFormatException e) {
+					e.printStackTrace();
+					error("字节集格式出错(" + e.getMessage()+")");
+				}
 			}
 		});
 	}
@@ -230,20 +212,36 @@ public class MainController implements Initializable {
 							p.serialNo = 0;
 						}
 						String string = Integer.toHexString(p.serialNo).toUpperCase();
-						if(string.length() >= 4 ) {
-							string = string.substring(string.length() - 4);
-						}else if(string.length() < 4){
-							int length = string.length();
-							for (int i = 0; i < 4 - length; i++) {
-								string = "0" + string;
-							}
-						}
+						string = StringUtil.fixLength(string, 4);
 						serialNoTf.setText(string);
-						serializePackageAndRefreshBytesTa();
+						//更新包名
+						nameLb.setText(clsName);
 					}
 				}
 			}
 		});
+	}
+
+
+	public void initFormatRbsListener() {
+		ChangeListener<Boolean> listener = new ChangeListener<Boolean>() {
+	
+			@Override
+			public void changed(ObservableValue<? extends Boolean> observable, Boolean oldValue, Boolean newValue) {
+				List<Byte> bytes = BytesParser.textTobytes(bytesTa.getText(), currentRadix);
+				if(hexRb.isSelected()) {
+					currentRadix = 16;
+				}else if(decRb.isSelected()){
+					currentRadix = 10;
+				}else if(binRb.isSelected()) {
+					currentRadix = 2;
+				}
+				bytesTa.setText(BytesParser.bytesToText(bytes, currentRadix));
+			}
+		};
+		hexRb.selectedProperty().addListener(listener);
+		decRb.selectedProperty().addListener(listener);
+		binRb.selectedProperty().addListener(listener);
 	}
 
 
@@ -286,23 +284,129 @@ public class MainController implements Initializable {
 				error("配置文件时出现IO错误");
 			}
 		}
+		System.out.println(fieldInfoPropertiesList.get(0).getValue());
 	}
 
 
 	public void onClickRandomBt() {
 		int serialNo = Math.abs(new Random().nextInt() % 0x10000);
 		String string = Integer.toHexString(serialNo).toUpperCase();
-		if(string.length() >= 4 ) {
-			string = string.substring(string.length() - 4);
-		}else if(string.length() < 4){
-			int length = string.length();
-			for (int i = 0; i < 4 - length; i++) {
-				string = "0" + string;
-			}
-		}
+		string = StringUtil.fixLength(string, 4);
 		serialNoTf.setText(string);
 	}
 
+	
+	public void onClickUnJigsawBt() {
+		serializePackageAndRefreshBytesTa();
+	}
+	
+
+	public void onClickJigsawBt() {
+		parseBytesAndRefreshTables();
+	}
+	
+	
+	public void onClickUpdateBt() {
+		try {
+			//获取当前选中行
+			int index = fieldTb.getSelectionModel().getSelectedIndex();
+			FieldInfoProperty property = fieldInfoPropertiesList.get(index);
+			//匹配字段
+			for (Field field : getSelectedPackage().getClass().getDeclaredFields()) {
+				if(field.getName().equals(property.getName())) {
+					field.setAccessible(true);
+					String valueString = updateTf.getText();
+					if(valueString == null || valueString.equals("")) {
+						error("属性值不能为空");
+						return;
+					}
+					switch (property.getType()) {
+					case "sign int":
+					case "unsign int":
+						field.set(getSelectedPackage(), Integer.valueOf(valueString));
+						break;
+					case "String":
+						field.set(getSelectedPackage(), valueString);
+						break;
+					case "Date":
+						field.set(getSelectedPackage(), DateUtil.yyyyMMddHHmmss(valueString));
+						break;
+					case "boolean":
+						field.set(getSelectedPackage(), (valueString == "1" || valueString == "true")? true : false);
+						break;
+					default:
+						//获取枚举值
+						Method method = field.getType().getMethod("values", new Class[] {});
+						Object[] objects = (Object[]) method.invoke(null, new Object[] {});
+						field.set(getSelectedPackage(), objects[Integer.valueOf(valueString)]);
+						break;
+					}
+					info("修改值成功");
+					loadFieldTb(getSelectedPackage());
+					break;
+				}
+			}
+		} catch (NumberFormatException e) {
+			error("数字值不符合规范：" + e.getMessage());
+			e.printStackTrace();
+		} catch (ReflectiveOperationException e) {
+			error("对象赋值时反射错误：" + e.getMessage());
+			e.printStackTrace();
+		} catch (IllegalArgumentException e) {
+			error("不合法的参数异常：" + e.getMessage());
+			e.printStackTrace();
+		} catch (ParseException e) {
+			error("日期时间解析出错：" + e.getMessage());
+			e.printStackTrace();
+		}catch (ArrayIndexOutOfBoundsException e) {
+			error("值超出范围，如果是枚举类型请仔细检查定义范围：" + e.getMessage());
+			e.printStackTrace();
+		}
+	}
+	
+	
+	private void serializePackageAndRefreshBytesTa() {
+		try {
+			List<Byte> bytes = PackageParser.serialize(getSelectedPackage());
+			//把字节集转换成文本
+			bytesTa.setText(BytesParser.bytesToText(bytes, currentRadix));
+			info("包分解为字节集成功");
+		}catch (Exception e) {
+			error("序列化包对象时出错：" + e.getMessage());
+			e.printStackTrace();
+		}
+	}
+
+	
+	private void parseBytesAndRefreshTables() {
+		try {
+			//文本解析成字节集
+			List<Byte> bytes = BytesParser.textTobytes(bytesTa.getText(), currentRadix);
+			BasePackage p;
+			try {
+				//尝试解析为正常包
+				p = PackageParser.parse(bytes, packageClasses, false);
+			} catch (PackageParseException e) {
+				//尝试解析为回复包
+				p = PackageParser.parse(bytes, packageClasses, true);
+			}
+			//更新对象并选择被修改的包类项
+			for (int i = 0; i < packageClasses.size(); i++) {
+				if(p.getClass().getSimpleName().equals(packageClasses.get(i).getSimpleName())) {
+					packageObjects.set(i, p);
+					packageTb.getSelectionModel().select(i);
+					packageTb.scrollTo(i);
+				}
+			}
+			info("字节集拼凑为包成功");
+		} catch (NumberFormatException e) {
+			error("字节集格式出错(" + e.getMessage()+")");
+			e.printStackTrace();
+		} catch (PackageParseException e) {
+			error("反序列化包对象时出错：" + e.getClass().getSimpleName() + " : " +e.getMessage());
+			e.printStackTrace();
+		}
+	}
 
 	private void loadFieldTb(BasePackage p) {
 		try {
@@ -326,10 +430,16 @@ public class MainController implements Initializable {
 						info.setLength(parse.value()[1]);
 						break;
 					case "String":
-						value = value == null ? "0" : value;
+						int length = parse.value()[1];
+						String initValue = "";
+						for (int i = 0; i < length; i++) {
+							initValue += "00 ";
+						}
+						initValue = initValue.trim();
+						value = value == null ? initValue : value;
 						info.setValue((String) value);
 						info.setType(type);
-						info.setLength(parse.value()[1]);
+						info.setLength(length);
 						break;
 					case "Date":
 						value = value == null ? new Date() : value;
@@ -354,7 +464,6 @@ public class MainController implements Initializable {
 								break;
 							}else {
 								info.setValue(Integer.toString(0));
-								value = objects[0];
 							}
 						}
 						info.setType(type);
@@ -367,44 +476,9 @@ public class MainController implements Initializable {
 					fieldInfoPropertiesList.add(property);
 				}
 			}
-			info("加载"+ p.getClass().getSimpleName() +"属性成功");
 		}catch (ReflectiveOperationException e) {
 			e.printStackTrace();
 			error("加载字段表格时出错：" + e.getMessage());
-		}
-	}
-
-
-	private void serializePackageAndRefreshBytesTa() {
-		try {
-			StringBuffer sb = new StringBuffer();
-			List<Byte> bytes = PackageParser.serialize(getSelectedPackage());
-			for (Byte b : bytes) {
-				if(hexRb.isSelected()) {
-					String string = Integer.toHexString(b).toUpperCase();
-					if(string.length() == 8) {
-						string = string.substring(6);
-					}else if(string.length() == 1){
-						string = "0" + string;
-					}
-					sb.append(string);
-				}else if(decRb.isSelected()){
-					sb.append(Integer.toString(b));
-				}else if(binRb.isSelected()) {
-					String string = Integer.toBinaryString(b);
-					if(string.length() == 32) {
-						string = string.substring(24);
-					}else if(string.length() == 4){
-						string = "0000" + string;
-					}
-					sb.append(string);
-				}
-				sb.append(" ");
-			}
-			bytesTa.setText(sb.toString().trim());
-		}catch (Exception e) {
-			error("序列化包对象时出错：" + e.getMessage());
-			e.printStackTrace();
 		}
 	}
 
@@ -413,6 +487,8 @@ public class MainController implements Initializable {
 		try {
 			List<Class> tempClasses = ClassScanner.searchClassInDir(properties.getProperty(CONFIG_KEY_CLASS_PATH));
 			//创建列表
+			packageInfoPropertiesList.clear();
+			fieldInfoPropertiesList.clear();
 			packageClasses = new ArrayList<Class>();
 			packageObjects = new ArrayList<BasePackage>();
 			//剔除没有继承至BasePackage类的元素
@@ -426,11 +502,10 @@ public class MainController implements Initializable {
 			}
 			//判断是否是空的
 			if(packageObjects.isEmpty()) {
-				error("该目录下没有找到class（提示：如果您的class名为com.abc.Foo，路径为/xxx/yyy/com/abc/Foo.class，那么目录请选择/xxx/yyy/ ）");
+				error("该目录下没有找到class（提示：如果class名为com.abc.Foo，路径为/xxx/yyy/com/abc/Foo.class，那目录请选择/xxx/yyy/ ）");
 				return;
 			}
 			//填充包类表格
-			packageInfoPropertiesList.clear();
 			for (BasePackage p : packageObjects) {
 				PackageInfo info = new PackageInfo();
 				//设置长度
@@ -440,9 +515,8 @@ public class MainController implements Initializable {
 				info.setName(p.getClass().getSimpleName());
 				//设置协议号
 				byte protocol = ((Protocol)p.getClass().getAnnotation(Protocol.class)).value();
-				String hex = Integer.toHexString(protocol);
-				hex = hex.length() == 1 ? '0' + hex : hex;
-				hex = hex.toUpperCase();
+				String hex = Integer.toHexString(protocol).toUpperCase();
+				hex = StringUtil.fixLength(hex, 2);
 				hex = "0x" + hex;
 				info.setProtocol(hex);
 				//添加到列表
@@ -469,13 +543,13 @@ public class MainController implements Initializable {
 		fieldTypeCol.setCellValueFactory(new PropertyValueFactory<>("type"));
 		fieldPositionCol.setCellValueFactory(new PropertyValueFactory<>("position"));
 		fieldLengthCol.setCellValueFactory(new PropertyValueFactory<>("length"));
+		//设置可编辑字段
+		fieldValueCol.setCellFactory(TextFieldTableCell.forTableColumn());
 		//绑定数据表
 		packageInfoPropertiesList = FXCollections.observableArrayList();
 		packageTb.setItems(packageInfoPropertiesList);
 		fieldInfoPropertiesList = FXCollections.observableArrayList();
 		fieldTb.setItems(fieldInfoPropertiesList);
-		//设置包类表格项被选择时的监听器
-		initPackageSelectedListener();
 	}
 
 
@@ -507,7 +581,7 @@ public class MainController implements Initializable {
 		return packageObjects.get(index);
 	}
 
-
+	
 	/**
 	 * 显示正常状态
 	 * @param message
