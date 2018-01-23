@@ -92,5 +92,13 @@
 			<artifactId>DaUtils</artifactId>
 			<version>1.0-SNAPHOT</version>
 		</dependency>
+		
+		<!-- https://mvnrepository.com/artifact/com.alibaba/fastjson -->
+		<dependency>
+			<groupId>com.alibaba</groupId>
+			<artifactId>fastjson</artifactId>
+			<version>1.2.40</version>
+		</dependency>
+		
 	</dependencies>
 </project>

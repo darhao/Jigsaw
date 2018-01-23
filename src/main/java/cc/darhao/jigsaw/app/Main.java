@@ -1,12 +1,17 @@
 package cc.darhao.jigsaw.app;
 
 import java.io.IOException;
+import java.util.List;
 
 import org.apache.logging.log4j.core.config.ConfigurationSource;
 import org.apache.logging.log4j.core.config.Configurator;
 
+import com.alibaba.fastjson.JSONArray;
+
 import cc.darhao.dautils.api.ResourcesUtil;
+import cc.darhao.dautils.api.TextFileUtil;
 import cc.darhao.jigsaw.controller.MainController;
+import cc.darhao.jiminal.core.BasePackage;
 import javafx.application.Application;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
@@ -22,7 +27,7 @@ public class Main extends Application{
 
 	private MainController mainController;
 	
-	private static final String VESION = "V0.1";
+	private static final String VESION = "V1.1 Beta";
 	
 	private static final String NAME = "Jigsaw";
 
@@ -60,7 +65,9 @@ public class Main extends Application{
 	
 	@Override
 	public void stop() throws Exception {
-		
+		List<BasePackage> packages = mainController.getPackageObjects();
+		String data = JSONArray.toJSONString(packages);
+		TextFileUtil.writeToFile("pack.dat", data);
 	}
 	
 }

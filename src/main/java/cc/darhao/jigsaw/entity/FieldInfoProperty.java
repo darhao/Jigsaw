@@ -44,5 +44,11 @@ public class FieldInfoProperty {
 	public int getLength() {
 		return length.get();
 	}
+
+
+	public void setValue(String value) {
+		this.value = new SimpleStringProperty(value);
+	}
+
 	
 }

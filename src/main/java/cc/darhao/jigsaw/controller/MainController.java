@@ -18,10 +18,14 @@ import java.util.ResourceBundle;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import com.alibaba.fastjson.JSONArray;
+import com.alibaba.fastjson.JSONObject;
+
 import cc.darhao.dautils.api.BytesParser;
 import cc.darhao.dautils.api.ClassScanner;
 import cc.darhao.dautils.api.DateUtil;
 import cc.darhao.dautils.api.StringUtil;
+import cc.darhao.dautils.api.TextFileUtil;
 import cc.darhao.jigsaw.entity.FieldInfo;
 import cc.darhao.jigsaw.entity.FieldInfoProperty;
 import cc.darhao.jigsaw.entity.PackageInfo;
@@ -115,9 +119,13 @@ public class MainController implements Initializable {
 	@FXML
 	private Button unJigsawBt;
 	@FXML
+	private TextField updateTf;
+	@FXML
+	private Button autoBt;
+	@FXML
 	private Button updateBt;
 	@FXML
-	private TextField updateTf;
+	private Label rightLb;
 	
 	/**
 	 * 扫描出来的通讯包类列表
@@ -153,6 +161,7 @@ public class MainController implements Initializable {
 		initSerialNoTfListener();
 		initFormatRbsListener();
 		initFieldSelectedListener();
+		rightLb.setText("© 2017 - "+ (new Date().getYear() + 1900) +" 沫熊工作室  All rights reserved.");
 	}
 
 	
@@ -162,13 +171,44 @@ public class MainController implements Initializable {
 			@Override
 			public void changed(ObservableValue<? extends FieldInfoProperty> observable, FieldInfoProperty oldValue,
 					FieldInfoProperty newValue) {
+				if(updateTf.isFocused()) {
+					return;
+				}
 				if(newValue != null) {
 					updateTf.setText(newValue.getValue());
 					updateTf.setDisable(false);
+					autoBt.setDisable(false);
 					updateBt.setDisable(false);
+					try {
+						//判断选择的项是否为枚举类型
+						if(newValue.getType().startsWith("枚举:")){
+							//在下方状态栏枚举枚举值
+							for(Field field : getSelectedPackage().getClass().getDeclaredFields()) {
+								//匹配字段
+								if(field.getType().getSimpleName().equals(newValue.getType().split(":")[1])) {
+									Class enumClass = field.getType();
+									//获取枚举值
+									Method method = field.getType().getMethod("values", new Class[] {});
+									Enum[] enums = (Enum[]) method.invoke(null, new Object[] {});
+									//构建提示串
+									StringBuffer stringBuffer = new StringBuffer();
+									stringBuffer.append("枚举类型 " + enumClass.getSimpleName() + ": ");
+									for (Enum enum1 : enums) {
+										stringBuffer.append(enum1.name() + "("+ enum1.ordinal() +"), ");
+									}
+									String tip = stringBuffer.substring(0, stringBuffer.length() - 2);
+									info(tip);
+									break;
+								}
+							}
+						}
+					} catch (ReflectiveOperationException e) {
+						e.printStackTrace();
+					}
 				}else {
 					updateTf.setText("");
 					updateTf.setDisable(true);
+					autoBt.setDisable(true);
 					updateBt.setDisable(true);
 				}
 			}
@@ -244,7 +284,7 @@ public class MainController implements Initializable {
 		binRb.selectedProperty().addListener(listener);
 	}
 
-
+	
 	public void onClickPathBt() {
 		//初始化文件选择器
 		DirectoryChooser chooser = new DirectoryChooser();
@@ -306,7 +346,7 @@ public class MainController implements Initializable {
 	}
 	
 	
-	public void onClickUpdateBt() {
+	public void onClickAutoBt() {
 		try {
 			//获取当前选中行
 			int index = fieldTb.getSelectionModel().getSelectedIndex();
@@ -315,52 +355,116 @@ public class MainController implements Initializable {
 			for (Field field : getSelectedPackage().getClass().getDeclaredFields()) {
 				if(field.getName().equals(property.getName())) {
 					field.setAccessible(true);
-					String valueString = updateTf.getText();
-					if(valueString == null || valueString.equals("")) {
-						error("属性值不能为空");
-						return;
-					}
+					String valueString = "";
+					Random random = new Random(new Date().getTime());
 					switch (property.getType()) {
-					case "sign int":
-					case "unsign int":
-						field.set(getSelectedPackage(), Integer.valueOf(valueString));
+					case "带符号整数":
+						String s  = StringUtil.fixLength(Integer.toHexString(random.nextInt()), property.getLength() * 2);
+						int i = Integer.valueOf(s, 16);
+						field.set(getSelectedPackage(), i);
+						valueString = i + "";
 						break;
-					case "String":
+					case "无符号整数":
+						String s1  = StringUtil.fixLength(Integer.toHexString(Math.abs(random.nextInt())), property.getLength() * 2);
+						int i1 = Integer.valueOf(s1, 16);
+						field.set(getSelectedPackage(), i1);
+						valueString = i1 + "";
+						break;
+					case "哈希串":
+						int len = property.getLength();
+						byte[] bytes = new byte[len];
+						random.nextBytes(bytes);
+						BytesParser.parseBytesToString(BytesParser.cast(bytes));
 						field.set(getSelectedPackage(), valueString);
 						break;
-					case "Date":
-						field.set(getSelectedPackage(), DateUtil.yyyyMMddHHmmss(valueString));
+					case "日期时间":;
+						Date now = new Date();
+						valueString = DateUtil.yyyyMMddHHmmss(new Date());
+						field.set(getSelectedPackage(), now);
 						break;
-					case "boolean":
-						field.set(getSelectedPackage(), (valueString == "1" || valueString == "true")? true : false);
+					case "布尔":
+						valueString = random.nextBoolean() + "";
+						field.set(getSelectedPackage(), (valueString.equals("1") || valueString.equals("true"))? true : false);
 						break;
 					default:
 						//获取枚举值
 						Method method = field.getType().getMethod("values", new Class[] {});
 						Object[] objects = (Object[]) method.invoke(null, new Object[] {});
+						valueString = (Math.abs(random.nextInt()) % objects.length) + "";
 						field.set(getSelectedPackage(), objects[Integer.valueOf(valueString)]);
 						break;
 					}
 					info("修改值成功");
-					loadFieldTb(getSelectedPackage());
+					property.setValue(valueString);
+					fieldInfoPropertiesList.set(index, property);
 					break;
 				}
 			}
-		} catch (NumberFormatException e) {
-			error("数字值不符合规范：" + e.getMessage());
-			e.printStackTrace();
 		} catch (ReflectiveOperationException e) {
 			error("对象赋值时反射错误：" + e.getMessage());
 			e.printStackTrace();
-		} catch (IllegalArgumentException e) {
-			error("不合法的参数异常：" + e.getMessage());
-			e.printStackTrace();
-		} catch (ParseException e) {
-			error("日期时间解析出错：" + e.getMessage());
-			e.printStackTrace();
-		}catch (ArrayIndexOutOfBoundsException e) {
-			error("值超出范围，如果是枚举类型请仔细检查定义范围：" + e.getMessage());
-			e.printStackTrace();
+		}
+	}
+	
+	
+	public void onClickUpdateBt() {
+		if(updateTf.getText() != null && !updateTf.getText().equals("")) {
+			try {
+				//获取当前选中行
+				int index = fieldTb.getSelectionModel().getSelectedIndex();
+				FieldInfoProperty property = fieldInfoPropertiesList.get(index);
+				//匹配字段
+				for (Field field : getSelectedPackage().getClass().getDeclaredFields()) {
+					if(field.getName().equals(property.getName())) {
+						field.setAccessible(true);
+						String valueString = updateTf.getText();
+						if(valueString == null || valueString.equals("")) {
+							error("属性值不能为空");
+							return;
+						}
+						switch (property.getType()) {
+						case "带符号整数":
+						case "无符号整数":
+							field.set(getSelectedPackage(), Integer.valueOf(valueString));
+							break;
+						case "哈希串":
+							field.set(getSelectedPackage(), valueString);
+							break;
+						case "日期时间":
+							field.set(getSelectedPackage(), DateUtil.yyyyMMddHHmmss(valueString));
+							break;
+						case "布尔":
+							field.set(getSelectedPackage(), (valueString.equals("1") || valueString.equals("true"))? true : false);
+							break;
+						default:
+							//获取枚举值
+							Method method = field.getType().getMethod("values", new Class[] {});
+							Object[] objects = (Object[]) method.invoke(null, new Object[] {});
+							field.set(getSelectedPackage(), objects[Integer.valueOf(valueString)]);
+							break;
+						}
+						info("修改值成功");
+						property.setValue(valueString);
+						fieldInfoPropertiesList.set(index, property);
+						break;
+					}
+				}
+			} catch (NumberFormatException e) {
+				error("数字值不符合规范：" + e.getMessage());
+				e.printStackTrace();
+			} catch (ReflectiveOperationException e) {
+				error("对象赋值时反射错误：" + e.getMessage());
+				e.printStackTrace();
+			} catch (IllegalArgumentException e) {
+				error("不合法的参数异常：" + e.getMessage());
+				e.printStackTrace();
+			} catch (ParseException e) {
+				error("日期时间解析出错：" + e.getMessage());
+				e.printStackTrace();
+			}catch (ArrayIndexOutOfBoundsException e) {
+				error("值超出范围，如果是枚举类型请仔细检查定义范围：" + e.getMessage());
+				e.printStackTrace();
+			}
 		}
 	}
 	
@@ -408,6 +512,7 @@ public class MainController implements Initializable {
 		}
 	}
 
+	
 	private void loadFieldTb(BasePackage p) {
 		try {
 			fieldInfoPropertiesList.clear();
@@ -426,7 +531,7 @@ public class MainController implements Initializable {
 					case "int":
 						value = value == null ? 0 : value;
 						info.setValue(Integer.toString((int) value));
-						info.setType(parse.sign() ? "sign int" : "unsign int");
+						info.setType(parse.sign() ? "带符号整数" : "无符号整数");
 						info.setLength(parse.value()[1]);
 						break;
 					case "String":
@@ -438,36 +543,39 @@ public class MainController implements Initializable {
 						initValue = initValue.trim();
 						value = value == null ? initValue : value;
 						info.setValue((String) value);
-						info.setType(type);
+						info.setType("哈希串");
 						info.setLength(length);
 						break;
 					case "Date":
 						value = value == null ? new Date() : value;
 						info.setValue(DateUtil.yyyyMMddHHmmss((Date)value));
-						info.setType(type);
+						info.setType("日期时间");
 						info.setLength(parse.value()[1]);
 						break;
 					case "boolean":
 						value = value == null ? false : value;
 						info.setValue((boolean)value ? "1" : "0");
-						info.setType(type);
+						info.setType("布尔");
 						info.setLength(1);
 						break;
 					default:
+						info.setType("枚举:"+type);
+						info.setLength(parse.value()[1]);
 						//获取枚举值
 						Method method = field.getType().getMethod("values", new Class[] {});
 						Object[] objects = (Object[]) method.invoke(null, new Object[] {});
 						//匹配枚举值
-						for (int i = 0; i < objects.length; i++) {
-							if(objects[i].equals(value)){
-								info.setValue(Integer.toString(i));
-								break;
-							}else {
-								info.setValue(Integer.toString(0));
+						if(value == null) {
+							value = objects[0];
+							info.setValue(Integer.toString(0));
+						}else {
+							for (int i = 0; i < objects.length; i++) {
+								if(objects[i].equals(value)){
+									info.setValue(Integer.toString(i));
+									break;
+								}
 							}
 						}
-						info.setType(type);
-						info.setLength(parse.value()[1]);
 						break;
 					}
 					//赋予值
@@ -490,15 +598,31 @@ public class MainController implements Initializable {
 			packageInfoPropertiesList.clear();
 			fieldInfoPropertiesList.clear();
 			packageClasses = new ArrayList<Class>();
-			packageObjects = new ArrayList<BasePackage>();
 			//剔除没有继承至BasePackage类的元素
 			for (Class class1 : tempClasses) {
 				Class superClass = class1.getSuperclass();
 				if(superClass != null && superClass.getSimpleName().equals("BasePackage")) {
 					//实例化类对象并加入列表
 					packageClasses.add(class1);
-					packageObjects.add((BasePackage)class1.newInstance());
 				}
+			}
+			//优先从备份文件中读取包对象数据，如果没有，新建一个包对象
+			packageObjects = new ArrayList<BasePackage>();
+			JSONArray jsonArray = null;
+			try {
+				jsonArray = JSONArray.parseArray(TextFileUtil.readFromFile("pack.dat"));
+			} catch (IOException e1) {
+				e1.printStackTrace();
+			}
+			for (int i = 0; i < packageClasses.size(); i++) {
+				Class class1 = packageClasses.get(i);
+				BasePackage bp = null;
+				try {
+					bp = (BasePackage) ((JSONObject)jsonArray.get(i)).toJavaObject(class1);
+				} catch (ClassCastException | NullPointerException e) {
+					bp = (BasePackage) class1.newInstance();
+				}
+				packageObjects.add(bp);
 			}
 			//判断是否是空的
 			if(packageObjects.isEmpty()) {
@@ -555,13 +679,15 @@ public class MainController implements Initializable {
 
 	private void initViewValue() {
 		String path = properties.getProperty(CONFIG_KEY_CLASS_PATH);
+		if(path == null || path.equals("")) {
+			return;
+		}
 		pathTf.setText(path);
 		loadPackageTb();
 	}
 
 	
 	private void initConfigFile() {
-		//读取上次文件路径和表名
 		properties = new Properties();
 		try {
 			properties.load(new FileInputStream(new File(CONFIG_FILE_NAME)));
@@ -615,4 +741,10 @@ public class MainController implements Initializable {
 	}
 
 
+	public List<BasePackage> getPackageObjects() {
+		return packageObjects;
+	}
+
+
+	
 }
