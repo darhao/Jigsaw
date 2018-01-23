@@ -39,9 +39,11 @@ import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
+import javafx.event.EventHandler;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.control.Button;
+import javafx.scene.control.CheckBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.RadioButton;
 import javafx.scene.control.TableColumn;
@@ -50,6 +52,7 @@ import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
 import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.control.cell.TextFieldTableCell;
+import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.AnchorPane;
 import javafx.scene.layout.Background;
 import javafx.scene.layout.BackgroundFill;
@@ -63,6 +66,10 @@ import javafx.stage.Stage;
  * @author 沫熊工作室 <a href="http://www.darhao.cc">www.darhao.cc</a>
  */
 public class MainController implements Initializable {
+	
+	private static final String[] randomStrings= {
+			"Hello, Darhao!", "Are you ok?", "嘤嘤嘤( ′◔ ‸◔`)", "Je t'aime", "この生涯はよろしくお願いします", "晚安，世界"
+	};
 	
 	private static final String CONFIG_FILE_NAME = "jigsaw.cfg";
 	
@@ -126,6 +133,14 @@ public class MainController implements Initializable {
 	private Button updateBt;
 	@FXML
 	private Label rightLb;
+	@FXML
+	private CheckBox packageInfoCb;
+	@FXML
+	private TextField startFlagsTf;
+	@FXML
+	private TextField endFlagsTf;
+	@FXML
+	private TextField endInvalidFlagsTf;
 	
 	/**
 	 * 扫描出来的通讯包类列表
@@ -161,6 +176,7 @@ public class MainController implements Initializable {
 		initSerialNoTfListener();
 		initFormatRbsListener();
 		initFieldSelectedListener();
+		initUpdateTfListener();
 		rightLb.setText("© 2017 - "+ (new Date().getYear() + 1900) +" 沫熊工作室  All rights reserved.");
 	}
 
@@ -178,7 +194,6 @@ public class MainController implements Initializable {
 					updateTf.setText(newValue.getValue());
 					updateTf.setDisable(false);
 					autoBt.setDisable(false);
-					updateBt.setDisable(false);
 					try {
 						//判断选择的项是否为枚举类型
 						if(newValue.getType().startsWith("枚举:")){
@@ -210,6 +225,7 @@ public class MainController implements Initializable {
 					updateTf.setDisable(true);
 					autoBt.setDisable(true);
 					updateBt.setDisable(true);
+
 				}
 			}
 			
@@ -268,7 +284,7 @@ public class MainController implements Initializable {
 	
 			@Override
 			public void changed(ObservableValue<? extends Boolean> observable, Boolean oldValue, Boolean newValue) {
-				List<Byte> bytes = BytesParser.textTobytes(bytesTa.getText(), currentRadix);
+				List<Byte> bytes = BytesParser.parseXRadixStringToBytes(bytesTa.getText(), currentRadix);
 				if(hexRb.isSelected()) {
 					currentRadix = 16;
 				}else if(decRb.isSelected()){
@@ -276,12 +292,23 @@ public class MainController implements Initializable {
 				}else if(binRb.isSelected()) {
 					currentRadix = 2;
 				}
-				bytesTa.setText(BytesParser.bytesToText(bytes, currentRadix));
+				bytesTa.setText(BytesParser.parseBytesToXRadixString(bytes, currentRadix));
 			}
 		};
 		hexRb.selectedProperty().addListener(listener);
 		decRb.selectedProperty().addListener(listener);
 		binRb.selectedProperty().addListener(listener);
+	}
+	
+	
+	public void initUpdateTfListener() {
+		updateTf.setOnKeyReleased(new EventHandler<KeyEvent>() {
+
+			@Override
+			public void handle(KeyEvent event) {
+				updateBt.setDisable(false);
+			}
+		});
 	}
 
 	
@@ -374,7 +401,11 @@ public class MainController implements Initializable {
 						int len = property.getLength();
 						byte[] bytes = new byte[len];
 						random.nextBytes(bytes);
-						BytesParser.parseBytesToString(BytesParser.cast(bytes));
+						valueString = BytesParser.parseBytesToHexString(BytesParser.cast(bytes));
+						field.set(getSelectedPackage(), valueString);
+						break;
+					case "字符串":
+						valueString = randomStrings[Math.abs(random.nextInt()) % 6];
 						field.set(getSelectedPackage(), valueString);
 						break;
 					case "日期时间":;
@@ -428,6 +459,7 @@ public class MainController implements Initializable {
 							field.set(getSelectedPackage(), Integer.valueOf(valueString));
 							break;
 						case "哈希串":
+						case "字符串":
 							field.set(getSelectedPackage(), valueString);
 							break;
 						case "日期时间":
@@ -446,6 +478,8 @@ public class MainController implements Initializable {
 						info("修改值成功");
 						property.setValue(valueString);
 						fieldInfoPropertiesList.set(index, property);
+						updateBt.setDisable(true);
+						fieldTb.requestFocus();
 						break;
 					}
 				}
@@ -469,11 +503,56 @@ public class MainController implements Initializable {
 	}
 	
 	
+	public void onClickPackageInfoCb() {
+		if(packageInfoCb.isSelected()) {
+			startFlagsTf.setDisable(false);
+			endFlagsTf.setDisable(false);
+			endInvalidFlagsTf.setDisable(false);
+		}else {
+			startFlagsTf.setDisable(true);
+			endFlagsTf.setDisable(true);
+			endInvalidFlagsTf.setDisable(true);
+		}
+		onClickUnJigsawBt();
+	}
+	
+	
 	private void serializePackageAndRefreshBytesTa() {
 		try {
 			List<Byte> bytes = PackageParser.serialize(getSelectedPackage());
 			//把字节集转换成文本
-			bytesTa.setText(BytesParser.bytesToText(bytes, currentRadix));
+			if(packageInfoCb.isSelected()) {
+				//获取标识值
+				byte[] endFlags = new byte[2];
+				byte[] endInvalidFlags = new byte[2];
+				byte[] startFlags = new byte[2];
+				String ef= StringUtil.fixLength(endFlagsTf.getText(), 4);
+				String evf = StringUtil.fixLength(endInvalidFlagsTf.getText(), 4);
+				String sf = StringUtil.fixLength(startFlagsTf.getText(), 4);
+				endFlags[0] = (byte) Integer.parseInt(ef.substring(0, 2),16);
+				endFlags[1] = (byte) Integer.parseInt(ef.substring(2, 4),16);
+				endInvalidFlags[0] = (byte) Integer.parseInt(evf.substring(0, 2),16);
+				endInvalidFlags[1] = (byte) Integer.parseInt(evf.substring(2, 4),16);
+				startFlags[0] = (byte) Integer.parseInt(sf.substring(0, 2),16);
+				startFlags[1] = (byte) Integer.parseInt(sf.substring(2, 4),16);
+				//检测文中是否存在结束位，如果有则用去语义标识注释
+				byte a1, a2 = 0;
+				for (int i = 0; i < bytes.size(); i++) {
+					a1 = a2;
+					a2 = bytes.get(i);
+					if(a1 == endFlags[0] && a2 == endFlags[1]) {
+						bytes.add(i - 1, endInvalidFlags[0]);
+						bytes.add(i, endInvalidFlags[1]);
+						i += 2;
+					}
+				}
+				//加入起止标识
+				bytes.add(0, startFlags[0]);
+				bytes.add(1, startFlags[1]);
+				bytes.add(endFlags[0]);
+				bytes.add(endFlags[1]);
+			}
+			bytesTa.setText(BytesParser.parseBytesToXRadixString(bytes, currentRadix));
 			info("包分解为字节集成功");
 		}catch (Exception e) {
 			error("序列化包对象时出错：" + e.getMessage());
@@ -485,7 +564,43 @@ public class MainController implements Initializable {
 	private void parseBytesAndRefreshTables() {
 		try {
 			//文本解析成字节集
-			List<Byte> bytes = BytesParser.textTobytes(bytesTa.getText(), currentRadix);
+			List<Byte> bytes = BytesParser.parseXRadixStringToBytes(bytesTa.getText(), currentRadix);
+			//把字节集转换成文本
+			if(packageInfoCb.isSelected()) {
+				//获取标识值
+				byte[] endFlags = new byte[2];
+				byte[] endInvalidFlags = new byte[2];
+				byte[] startFlags = new byte[2];
+				String ef= StringUtil.fixLength(endFlagsTf.getText(), 4);
+				String evf = StringUtil.fixLength(endInvalidFlagsTf.getText(), 4);
+				String sf = StringUtil.fixLength(startFlagsTf.getText(), 4);
+				endFlags[0] = (byte) Integer.parseInt(ef.substring(0, 2),16);
+				endFlags[1] = (byte) Integer.parseInt(ef.substring(2, 4),16);
+				endInvalidFlags[0] = (byte) Integer.parseInt(evf.substring(0, 2),16);
+				endInvalidFlags[1] = (byte) Integer.parseInt(evf.substring(2, 4),16);
+				startFlags[0] = (byte) Integer.parseInt(sf.substring(0, 2),16);
+				startFlags[1] = (byte) Integer.parseInt(sf.substring(2, 4),16);
+				//去掉所有停止标识去语义标识符
+				byte a1, a2 = 0;
+				for (int i = 0; i < bytes.size(); i++) {
+					a1 = a2;
+					a2 = bytes.get(i);
+					if (a1 == endFlags[0] && a2 == endFlags[1]) {
+						byte e1 = bytes.get(i - 3);
+						byte e2 = bytes.get(i - 2);
+						if(e1 ==  endInvalidFlags[0] && e2 == endInvalidFlags[1]) {
+							//去掉去语义标识符
+							bytes.remove(i - 3);
+							bytes.remove(i - 3);
+						}
+					}
+				}
+				//去掉起止标识
+				bytes.remove(0);
+				bytes.remove(0);
+				bytes.remove(bytes.size() - 1);
+				bytes.remove(bytes.size() - 1);
+			}
 			BasePackage p;
 			try {
 				//尝试解析为正常包
@@ -536,15 +651,20 @@ public class MainController implements Initializable {
 						break;
 					case "String":
 						int length = parse.value()[1];
-						String initValue = "";
-						for (int i = 0; i < length; i++) {
-							initValue += "00 ";
-						}
-						initValue = initValue.trim();
-						value = value == null ? initValue : value;
-						info.setValue((String) value);
-						info.setType("哈希串");
 						info.setLength(length);
+						if(parse.utf8()) {
+							value = value == null ? randomStrings[0] : value;
+							info.setType("字符串");
+						}else {
+							String initValue = "";
+							for (int i = 0; i < length; i++) {
+								initValue += "00 ";
+							}
+							initValue = initValue.trim();
+							value = value == null ? initValue : value;
+							info.setType("哈希串");
+						}
+						info.setValue((String) value);
 						break;
 					case "Date":
 						value = value == null ? new Date() : value;
@@ -554,7 +674,7 @@ public class MainController implements Initializable {
 						break;
 					case "boolean":
 						value = value == null ? false : value;
-						info.setValue((boolean)value ? "1" : "0");
+						info.setValue((boolean)value ? "true" : "false");
 						info.setType("布尔");
 						info.setLength(1);
 						break;
@@ -619,7 +739,7 @@ public class MainController implements Initializable {
 				BasePackage bp = null;
 				try {
 					bp = (BasePackage) ((JSONObject)jsonArray.get(i)).toJavaObject(class1);
-				} catch (ClassCastException | NullPointerException e) {
+				} catch (Exception e) {
 					bp = (BasePackage) class1.newInstance();
 				}
 				packageObjects.add(bp);
