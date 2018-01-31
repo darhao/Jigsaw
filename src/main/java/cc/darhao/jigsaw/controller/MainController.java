@@ -261,17 +261,7 @@ public class MainController implements Initializable {
 				String clsName = newValue.getName();
 				for (BasePackage p : packageObjects) {
 					if(p.getClass().getSimpleName().equals(clsName)) {
-						//更新右侧字段表数据
-						loadFieldTb(p);
-						//更新信息序列号
-						if(p.serialNo == null) {
-							p.serialNo = 0;
-						}
-						String string = Integer.toHexString(p.serialNo).toUpperCase();
-						string = StringUtil.fixLength(string, 4);
-						serialNoTf.setText(string);
-						//更新包名
-						nameLb.setText(clsName);
+						updateObjectInfo(p);
 					}
 				}
 			}
@@ -613,7 +603,11 @@ public class MainController implements Initializable {
 			for (int i = 0; i < packageClasses.size(); i++) {
 				if(p.getClass().getSimpleName().equals(packageClasses.get(i).getSimpleName())) {
 					packageObjects.set(i, p);
-					packageTb.getSelectionModel().select(i);
+					if(packageTb.getSelectionModel().getSelectedIndex() == i) {
+						updateObjectInfo(p);
+					}else {
+						packageTb.getSelectionModel().select(i);
+					}
 					packageTb.scrollTo(i);
 				}
 			}
@@ -625,6 +619,21 @@ public class MainController implements Initializable {
 			error("反序列化包对象时出错：" + e.getClass().getSimpleName() + " : " +e.getMessage());
 			e.printStackTrace();
 		}
+	}
+
+
+	private void updateObjectInfo(BasePackage p) {
+		//更新右侧字段表数据
+		loadFieldTb(p);
+		//更新信息序列号
+		if(p.serialNo == null) {
+			p.serialNo = 0;
+		}
+		String string = Integer.toHexString(p.serialNo).toUpperCase();
+		string = StringUtil.fixLength(string, 4);
+		serialNoTf.setText(string);
+		//更新包名
+		nameLb.setText(p.getClass().getSimpleName());
 	}
 
 	
