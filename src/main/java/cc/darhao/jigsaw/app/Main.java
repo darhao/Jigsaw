@@ -11,7 +11,7 @@ import com.alibaba.fastjson.JSONArray;
 import cc.darhao.dautils.api.ResourcesUtil;
 import cc.darhao.dautils.api.TextFileUtil;
 import cc.darhao.jigsaw.controller.MainController;
-import cc.darhao.jiminal.core.BasePackage;
+import cc.darhao.jiminal.pack.BasePackage;
 import javafx.application.Application;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
@@ -27,7 +27,7 @@ public class Main extends Application{
 
 	private MainController mainController;
 	
-	private static final String VESION = "V1.3 Beta";
+	private static final String VESION = "V1.4";
 	
 	private static final String NAME = "Jigsaw";
 

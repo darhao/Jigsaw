@@ -32,9 +32,10 @@ import cc.darhao.jigsaw.entity.PackageInfo;
 import cc.darhao.jigsaw.entity.PackageInfoProperty;
 import cc.darhao.jiminal.annotation.Parse;
 import cc.darhao.jiminal.annotation.Protocol;
-import cc.darhao.jiminal.core.BasePackage;
-import cc.darhao.jiminal.core.PackageParser;
+import cc.darhao.jiminal.config.PackageConfig;
 import cc.darhao.jiminal.exception.PackageParseException;
+import cc.darhao.jiminal.pack.BasePackage;
+import cc.darhao.jiminal.parse.PackageParser;
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
@@ -124,6 +125,8 @@ public class MainController implements Initializable {
 	@FXML
 	private Button jigsawBt;
 	@FXML
+	private Button JigsawReplyBt;
+	@FXML
 	private Button unJigsawBt;
 	@FXML
 	private TextField updateTf;
@@ -146,6 +149,17 @@ public class MainController implements Initializable {
 	 * 扫描出来的通讯包类列表
 	 */
 	private List<Class> packageClasses;
+	
+	/**
+	 * 正常包配置
+	 */
+	private PackageConfig packageConfig;
+	
+	/**
+	 * 回复包配置
+	 */
+	private PackageConfig replyPackageConfig;
+	
 	/**
 	 * 扫描出来的通讯包类的对象列表
 	 */
@@ -258,10 +272,12 @@ public class MainController implements Initializable {
 			@Override
 			public void changed(ObservableValue<? extends PackageInfoProperty> observable, PackageInfoProperty oldValue,
 					PackageInfoProperty newValue) {
-				String clsName = newValue.getName();
-				for (BasePackage p : packageObjects) {
-					if(p.getClass().getSimpleName().equals(clsName)) {
-						updateObjectInfo(p);
+				if(newValue != null) {
+					String clsName = newValue.getName();
+					for (BasePackage p : packageObjects) {
+						if(p.getClass().getSimpleName().equals(clsName)) {
+							updateObjectInfo(p);
+						}
 					}
 				}
 			}
@@ -359,7 +375,12 @@ public class MainController implements Initializable {
 	
 
 	public void onClickJigsawBt() {
-		parseBytesAndRefreshTables();
+		parseBytesAndRefreshTables(false);
+	}
+	
+	
+	public void onClickJigsawReplyBt() {
+		parseBytesAndRefreshTables(true);
 	}
 	
 	
@@ -503,7 +524,6 @@ public class MainController implements Initializable {
 			endFlagsTf.setDisable(true);
 			endInvalidFlagsTf.setDisable(true);
 		}
-		onClickUnJigsawBt();
 	}
 	
 	
@@ -551,7 +571,7 @@ public class MainController implements Initializable {
 	}
 
 	
-	private void parseBytesAndRefreshTables() {
+	private void parseBytesAndRefreshTables(boolean isReplyPackage) {
 		try {
 			//文本解析成字节集
 			List<Byte> bytes = BytesParser.parseXRadixStringToBytes(bytesTa.getText(), currentRadix);
@@ -591,13 +611,12 @@ public class MainController implements Initializable {
 				bytes.remove(bytes.size() - 1);
 				bytes.remove(bytes.size() - 1);
 			}
-			BasePackage p;
-			try {
-				//尝试解析为正常包
-				p = PackageParser.parse(bytes, packageClasses, false);
-			} catch (PackageParseException e) {
-				//尝试解析为回复包
-				p = PackageParser.parse(bytes, packageClasses, true);
+			//解析包
+			 BasePackage p;
+			if(isReplyPackage) {
+				p = PackageParser.parse(bytes, replyPackageConfig);
+			}else {
+				p = PackageParser.parse(bytes, packageConfig);
 			}
 			//更新对象并选择被修改的包类项
 			for (int i = 0; i < packageClasses.size(); i++) {
@@ -727,12 +746,19 @@ public class MainController implements Initializable {
 			packageInfoPropertiesList.clear();
 			fieldInfoPropertiesList.clear();
 			packageClasses = new ArrayList<Class>();
+			packageConfig = new PackageConfig();
+			replyPackageConfig = new PackageConfig();
 			//剔除没有继承至BasePackage类的元素
 			for (Class class1 : tempClasses) {
 				Class superClass = class1.getSuperclass();
 				if(superClass != null && superClass.getSimpleName().equals("BasePackage")) {
 					//实例化类对象并加入列表
 					packageClasses.add(class1);
+					//添加对象到配置对象中
+					if(! class1.getSimpleName().contains("Reply")) {
+						packageConfig.add(class1, false);
+						replyPackageConfig.add(class1, true);
+					}
 				}
 			}
 			//优先从备份文件中读取包对象数据，如果没有，新建一个包对象
