@@ -1,1 +1,1 @@
-[{"crc":5939,"length":29,"msg":"Hello, Darhao!","protocol":"P","serialNo":0},{"crc":5939,"length":29,"msg":"Hello, Darhao!","protocol":"P","serialNo":0},{"length":5,"protocol":"Q"},{"age":0,"length":7,"protocol":"Q"}]
+[{"crc":-10542,"length":-51,"msg":"Hello, Darhao!Hello, Darhao!Hello, Darhao!Hello, Darhao!Hello, Darhao!","protocol":"P","serialNo":0},{"crc":-10542,"length":-51,"msg":"","protocol":"P","serialNo":0},{"length":5,"protocol":"Q","serialNo":0},{"age":0,"length":7,"protocol":"Q","serialNo":0}]

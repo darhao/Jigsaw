@@ -789,7 +789,7 @@ public class MainController implements Initializable {
 				PackageInfo info = new PackageInfo();
 				//设置长度
 				PackageParser.initPackageInfo(p);
-				info.setLength(p.length);
+				info.setLength(Byte.toUnsignedInt(p.length));
 				//设置名字
 				info.setName(p.getClass().getSimpleName());
 				//设置协议号
