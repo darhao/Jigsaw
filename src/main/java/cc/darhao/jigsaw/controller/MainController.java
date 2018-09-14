@@ -44,7 +44,6 @@ import javafx.event.EventHandler;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.control.Button;
-import javafx.scene.control.CheckBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.RadioButton;
 import javafx.scene.control.TableColumn;
@@ -136,14 +135,6 @@ public class MainController implements Initializable {
 	private Button updateBt;
 	@FXML
 	private Label rightLb;
-	@FXML
-	private CheckBox packageInfoCb;
-	@FXML
-	private TextField startFlagsTf;
-	@FXML
-	private TextField endFlagsTf;
-	@FXML
-	private TextField endInvalidFlagsTf;
 	
 	/**
 	 * 扫描出来的通讯包类列表
@@ -514,54 +505,9 @@ public class MainController implements Initializable {
 	}
 	
 	
-	public void onClickPackageInfoCb() {
-		if(packageInfoCb.isSelected()) {
-			startFlagsTf.setDisable(false);
-			endFlagsTf.setDisable(false);
-			endInvalidFlagsTf.setDisable(false);
-		}else {
-			startFlagsTf.setDisable(true);
-			endFlagsTf.setDisable(true);
-			endInvalidFlagsTf.setDisable(true);
-		}
-	}
-	
-	
 	private void serializePackageAndRefreshBytesTa() {
 		try {
 			List<Byte> bytes = PackageParser.serialize(getSelectedPackage());
-			//把字节集转换成文本
-			if(packageInfoCb.isSelected()) {
-				//获取标识值
-				byte[] endFlags = new byte[2];
-				byte[] endInvalidFlags = new byte[2];
-				byte[] startFlags = new byte[2];
-				String ef= StringUtil.fixLength(endFlagsTf.getText(), 4);
-				String evf = StringUtil.fixLength(endInvalidFlagsTf.getText(), 4);
-				String sf = StringUtil.fixLength(startFlagsTf.getText(), 4);
-				endFlags[0] = (byte) Integer.parseInt(ef.substring(0, 2),16);
-				endFlags[1] = (byte) Integer.parseInt(ef.substring(2, 4),16);
-				endInvalidFlags[0] = (byte) Integer.parseInt(evf.substring(0, 2),16);
-				endInvalidFlags[1] = (byte) Integer.parseInt(evf.substring(2, 4),16);
-				startFlags[0] = (byte) Integer.parseInt(sf.substring(0, 2),16);
-				startFlags[1] = (byte) Integer.parseInt(sf.substring(2, 4),16);
-				//检测文中是否存在结束位，如果有则用去语义标识注释
-				byte a1, a2 = 0;
-				for (int i = 0; i < bytes.size(); i++) {
-					a1 = a2;
-					a2 = bytes.get(i);
-					if(a1 == endFlags[0] && a2 == endFlags[1]) {
-						bytes.add(i - 1, endInvalidFlags[0]);
-						bytes.add(i, endInvalidFlags[1]);
-						i += 2;
-					}
-				}
-				//加入起止标识
-				bytes.add(0, startFlags[0]);
-				bytes.add(1, startFlags[1]);
-				bytes.add(endFlags[0]);
-				bytes.add(endFlags[1]);
-			}
 			bytesTa.setText(BytesParser.parseBytesToXRadixString(bytes, currentRadix));
 			info("包分解为字节集成功");
 		}catch (Exception e) {
@@ -575,42 +521,6 @@ public class MainController implements Initializable {
 		try {
 			//文本解析成字节集
 			List<Byte> bytes = BytesParser.parseXRadixStringToBytes(bytesTa.getText(), currentRadix);
-			//把字节集转换成文本
-			if(packageInfoCb.isSelected()) {
-				//获取标识值
-				byte[] endFlags = new byte[2];
-				byte[] endInvalidFlags = new byte[2];
-				byte[] startFlags = new byte[2];
-				String ef= StringUtil.fixLength(endFlagsTf.getText(), 4);
-				String evf = StringUtil.fixLength(endInvalidFlagsTf.getText(), 4);
-				String sf = StringUtil.fixLength(startFlagsTf.getText(), 4);
-				endFlags[0] = (byte) Integer.parseInt(ef.substring(0, 2),16);
-				endFlags[1] = (byte) Integer.parseInt(ef.substring(2, 4),16);
-				endInvalidFlags[0] = (byte) Integer.parseInt(evf.substring(0, 2),16);
-				endInvalidFlags[1] = (byte) Integer.parseInt(evf.substring(2, 4),16);
-				startFlags[0] = (byte) Integer.parseInt(sf.substring(0, 2),16);
-				startFlags[1] = (byte) Integer.parseInt(sf.substring(2, 4),16);
-				//去掉所有停止标识去语义标识符
-				byte a1, a2 = 0;
-				for (int i = 0; i < bytes.size(); i++) {
-					a1 = a2;
-					a2 = bytes.get(i);
-					if (a1 == endFlags[0] && a2 == endFlags[1]) {
-						byte e1 = bytes.get(i - 3);
-						byte e2 = bytes.get(i - 2);
-						if(e1 ==  endInvalidFlags[0] && e2 == endInvalidFlags[1]) {
-							//去掉去语义标识符
-							bytes.remove(i - 3);
-							bytes.remove(i - 3);
-						}
-					}
-				}
-				//去掉起止标识
-				bytes.remove(0);
-				bytes.remove(0);
-				bytes.remove(bytes.size() - 1);
-				bytes.remove(bytes.size() - 1);
-			}
 			//解析包
 			 BasePackage p;
 			if(isReplyPackage) {
@@ -755,10 +665,8 @@ public class MainController implements Initializable {
 					//实例化类对象并加入列表
 					packageClasses.add(class1);
 					//添加对象到配置对象中
-					if(! class1.getSimpleName().contains("Reply")) {
-						packageConfig.add(class1, false);
-						replyPackageConfig.add(class1, true);
-					}
+					packageConfig.add(class1, false);
+					replyPackageConfig.add(class1, true);
 				}
 			}
 			//优先从备份文件中读取包对象数据，如果没有，新建一个包对象

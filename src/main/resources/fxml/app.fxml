@@ -62,13 +62,6 @@
       <TextField fx:id="updateTf" disable="true" layoutX="559.0" layoutY="31.0" prefHeight="23.0" prefWidth="141.0" promptText="属性值" AnchorPane.leftAnchor="559.0" AnchorPane.rightAnchor="299.0" AnchorPane.topAnchor="31.0" />
       <Button fx:id="autoBt" disable="true" layoutX="752.0" layoutY="31.0" mnemonicParsing="false" onAction="#onClickAutoBt" prefHeight="23.0" prefWidth="42.0" text="随机" AnchorPane.rightAnchor="205.0" AnchorPane.topAnchor="31.0" />
       <Button fx:id="updateBt" disable="true" layoutX="704.0" layoutY="31.0" mnemonicParsing="false" onAction="#onClickUpdateBt" prefHeight="23.0" prefWidth="42.0" text="提交" AnchorPane.rightAnchor="253.0" AnchorPane.topAnchor="31.0" />
-      <CheckBox fx:id="packageInfoCb" layoutX="463.0" layoutY="335.0" mnemonicParsing="false" onMouseClicked="#onClickPackageInfoCb" text="带标识" AnchorPane.bottomAnchor="148.0" AnchorPane.rightAnchor="479.0" />
-      <TextField fx:id="startFlagsTf" disable="true" layoutX="588.0" layoutY="333.0" prefHeight="23.0" prefWidth="60.0" promptText="2个字节" text="8080" AnchorPane.bottomAnchor="143.0" AnchorPane.rightAnchor="351.0" />
-      <Label layoutX="536.0" layoutY="336.0" text="起始标识" AnchorPane.bottomAnchor="148.0" AnchorPane.rightAnchor="415.0" />
-      <TextField fx:id="endInvalidFlagsTf" disable="true" layoutX="897.0" layoutY="332.0" prefHeight="23.0" prefWidth="60.0" promptText="2个字节" text="FFFF" AnchorPane.bottomAnchor="144.0" AnchorPane.rightAnchor="42.0" />
-      <Label layoutX="785.0" layoutY="336.0" text="停止标识去语义标识" AnchorPane.bottomAnchor="148.0" AnchorPane.rightAnchor="106.0" />
-      <TextField fx:id="endFlagsTf" disable="true" layoutX="713.0" layoutY="332.0" prefHeight="23.0" prefWidth="60.0" promptText="2个字节" text="0D0A" AnchorPane.bottomAnchor="143.0" AnchorPane.rightAnchor="226.0" />
-      <Label layoutX="661.0" layoutY="336.0" text="停止标识" AnchorPane.bottomAnchor="148.0" AnchorPane.rightAnchor="290.0" />
       <Button fx:id="jigsawReplyBt" layoutX="215.0" layoutY="303.0" mnemonicParsing="false" onAction="#onClickJigsawReplyBt" prefHeight="23.0" prefWidth="141.0" text="↑ Jigsaw 回复包 ↑" AnchorPane.bottomAnchor="173.0" AnchorPane.leftAnchor="215.0">
          <font>
             <Font name="System Bold" size="12.0" />
